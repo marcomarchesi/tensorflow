@@ -53,7 +53,7 @@ Status Session::PRun(const string& handle,
 
 Session* NewSession(const SessionOptions& options) {
   SessionFactory* factory;
-  Status s = SessionFactory::GetFactory(options, &factory);
+  const Status s = SessionFactory::GetFactory(options, &factory);
   if (!s.ok()) {
     LOG(ERROR) << s;
     return nullptr;
@@ -63,7 +63,7 @@ Session* NewSession(const SessionOptions& options) {
 
 Status NewSession(const SessionOptions& options, Session** out_session) {
   SessionFactory* factory;
-  Status s = SessionFactory::GetFactory(options, &factory);
+  const Status s = SessionFactory::GetFactory(options, &factory);
   if (!s.ok()) {
     *out_session = nullptr;
     LOG(ERROR) << s;
@@ -74,6 +74,13 @@ Status NewSession(const SessionOptions& options, Session** out_session) {
     return errors::Internal("Failed to create session.");
   }
   return Status::OK();
+}
+
+Status Reset(const SessionOptions& options,
+             const std::vector<string>& containers) {
+  SessionFactory* factory;
+  TF_RETURN_IF_ERROR(SessionFactory::GetFactory(options, &factory));
+  return factory->Reset(options, containers);
 }
 
 }  // namespace tensorflow

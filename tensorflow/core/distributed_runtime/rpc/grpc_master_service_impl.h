@@ -25,7 +25,18 @@ limitations under the License.
 #include "grpc++/impl/codegen/stub_options.h"
 #include "grpc++/impl/codegen/sync_stream.h"
 
+#include "tensorflow/core/distributed_runtime/rpc/grpc_namespace_compat.h"
+#include "tensorflow/core/distributed_runtime/rpc/grpc_serialization_traits.h"
 #include "tensorflow/core/protobuf/master.pb.h"
+
+// Contains potentially large GraphDef.
+TF_GRPC_ALLOW_UNLIMITED_MESSAGE_SIZE(tensorflow::CreateSessionRequest);
+// Contains potentially large GraphDef.
+TF_GRPC_ALLOW_UNLIMITED_MESSAGE_SIZE(tensorflow::ExtendSessionRequest);
+// Contains potentially large TensorProto.
+TF_GRPC_ALLOW_UNLIMITED_MESSAGE_SIZE(tensorflow::RunStepRequest);
+// Contains potentially large StepStats, TensorProto.
+TF_GRPC_ALLOW_UNLIMITED_MESSAGE_SIZE(tensorflow::RunStepResponse);
 
 namespace grpc {
 class CompletionQueue;
@@ -43,7 +54,7 @@ namespace grpc {
 // definition in "//tensorflow/core/protobuf/master_service.proto",
 // and the gRPC generated stub and service classes.
 // See that file for the definition of methods and messages.
-class MasterService GRPC_FINAL {
+class MasterService final {
  public:
   class StubInterface {
    public:
@@ -54,6 +65,9 @@ class MasterService GRPC_FINAL {
     virtual ::grpc::Status ExtendSession(::grpc::ClientContext* context,
                                          const ExtendSessionRequest& request,
                                          ExtendSessionResponse* response) = 0;
+    virtual ::grpc::Status PartialRunSetup(
+        ::grpc::ClientContext* context, const PartialRunSetupRequest& request,
+        PartialRunSetupResponse* response) = 0;
     virtual ::grpc::Status RunStep(::grpc::ClientContext* context,
                                    const RunStepRequest& request,
                                    RunStepResponse* response) = 0;
@@ -67,32 +81,36 @@ class MasterService GRPC_FINAL {
                                  const ResetRequest& request,
                                  ResetResponse* response) = 0;
   };
-  class Stub GRPC_FINAL : public StubInterface {
+  class Stub final : public StubInterface {
    public:
     Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel);
     ::grpc::Status CreateSession(::grpc::ClientContext* context,
                                  const CreateSessionRequest& request,
-                                 CreateSessionResponse* response) GRPC_OVERRIDE;
+                                 CreateSessionResponse* response) override;
     ::grpc::Status ExtendSession(::grpc::ClientContext* context,
                                  const ExtendSessionRequest& request,
-                                 ExtendSessionResponse* response) GRPC_OVERRIDE;
+                                 ExtendSessionResponse* response) override;
+    ::grpc::Status PartialRunSetup(
+        ::grpc::ClientContext* context, const PartialRunSetupRequest& request,
+        PartialRunSetupResponse* response) override;
     ::grpc::Status RunStep(::grpc::ClientContext* context,
                            const RunStepRequest& request,
-                           RunStepResponse* response) GRPC_OVERRIDE;
+                           RunStepResponse* response) override;
     ::grpc::Status CloseSession(::grpc::ClientContext* context,
                                 const CloseSessionRequest& request,
-                                CloseSessionResponse* response) GRPC_OVERRIDE;
+                                CloseSessionResponse* response) override;
     ::grpc::Status ListDevices(::grpc::ClientContext* context,
                                const ListDevicesRequest& request,
-                               ListDevicesResponse* response) GRPC_OVERRIDE;
+                               ListDevicesResponse* response) override;
     ::grpc::Status Reset(::grpc::ClientContext* context,
                          const ResetRequest& request,
-                         ResetResponse* response) GRPC_OVERRIDE;
+                         ResetResponse* response) override;
 
    private:
     std::shared_ptr< ::grpc::ChannelInterface> channel_;
     const ::grpc::RpcMethod rpcmethod_CreateSession_;
     const ::grpc::RpcMethod rpcmethod_ExtendSession_;
+    const ::grpc::RpcMethod rpcmethod_PartialRunSetup_;
     const ::grpc::RpcMethod rpcmethod_RunStep_;
     const ::grpc::RpcMethod rpcmethod_CloseSession_;
     const ::grpc::RpcMethod rpcmethod_ListDevices_;
@@ -122,12 +140,20 @@ class MasterService GRPC_FINAL {
       ::grpc::Service::RequestAsyncUnary(1, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
+    void RequestPartialRunSetup(
+        ::grpc::ServerContext* context, PartialRunSetupRequest* request,
+        ::grpc::ServerAsyncResponseWriter<PartialRunSetupResponse>* response,
+        ::grpc::CompletionQueue* new_call_cq,
+        ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response,
+                                         new_call_cq, notification_cq, tag);
+    }
     void RequestRunStep(
         ::grpc::ServerContext* context, RunStepRequest* request,
         ::grpc::ServerAsyncResponseWriter<RunStepResponse>* response,
         ::grpc::CompletionQueue* new_call_cq,
         ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
-      ::grpc::Service::RequestAsyncUnary(2, context, request, response,
+      ::grpc::Service::RequestAsyncUnary(3, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
     void RequestCloseSession(
@@ -135,7 +161,7 @@ class MasterService GRPC_FINAL {
         ::grpc::ServerAsyncResponseWriter<CloseSessionResponse>* response,
         ::grpc::CompletionQueue* new_call_cq,
         ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
-      ::grpc::Service::RequestAsyncUnary(3, context, request, response,
+      ::grpc::Service::RequestAsyncUnary(4, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
     void RequestListDevices(
@@ -143,7 +169,7 @@ class MasterService GRPC_FINAL {
         ::grpc::ServerAsyncResponseWriter<ListDevicesResponse>* response,
         ::grpc::CompletionQueue* new_call_cq,
         ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
-      ::grpc::Service::RequestAsyncUnary(4, context, request, response,
+      ::grpc::Service::RequestAsyncUnary(5, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
     void RequestReset(
@@ -151,7 +177,7 @@ class MasterService GRPC_FINAL {
         ::grpc::ServerAsyncResponseWriter<ResetResponse>* response,
         ::grpc::CompletionQueue* new_call_cq,
         ::grpc::ServerCompletionQueue* notification_cq, void* tag) {
-      ::grpc::Service::RequestAsyncUnary(5, context, request, response,
+      ::grpc::Service::RequestAsyncUnary(6, context, request, response,
                                          new_call_cq, notification_cq, tag);
     }
   };

@@ -9,12 +9,14 @@ load(
     "//tensorflow:tensorflow.bzl",
     "tf_copts",
     "tf_cc_test",
+    "tf_cc_binary",
 )
 
 exports_files(["LICENSE"])
 
 cc_library(
     name = "benchmark_model_lib",
+    testonly = 1,
     srcs = [
         "benchmark_model.cc",
     ],
@@ -26,14 +28,17 @@ cc_library(
     deps = select({
         "//tensorflow:android": [
             "//tensorflow/core:android_tensorflow_lib",
+            "//tensorflow/core:android_tensorflow_test_lib",
         ],
         "//conditions:default": [
             "//tensorflow/core:core_cpu",
             "//tensorflow/core:lib",
             "//tensorflow/core:framework",
             "//tensorflow/core:framework_internal",
+            "//tensorflow/core:framework_lite",
             "//tensorflow/core:protos_all_cc",
             "//tensorflow/core:tensorflow",
+            "//tensorflow/core:test",
         ],
     }),
 )
@@ -41,6 +46,7 @@ cc_library(
 tf_cc_test(
     name = "benchmark_model_test",
     size = "medium",
+    srcs = ["benchmark_model_test.cc"],
     deps = [
         ":benchmark_model_lib",
         "//tensorflow/cc:cc_ops",
@@ -59,13 +65,9 @@ tf_cc_test(
 # --crosstool_top=//external:android/crosstool \
 # --cpu=armeabi-v7a \
 # --host_crosstool_top=@bazel_tools//tools/cpp:toolchain
-#
-# NOTE: currently '-pthread' must be removed from the LINK_OPTS variable
-# in @protobuf//:BUILD to sucessfully build for Android. This is temporary
-# pending an update of the version of the protobuf library that Tensorflow
-# uses.
-cc_binary(
+tf_cc_binary(
     name = "benchmark_model",
+    testonly = 1,
     srcs = ["benchmark_model_main.cc"],
     copts = tf_copts(),
     linkopts = select({
@@ -73,12 +75,12 @@ cc_binary(
             "-pie",
             "-s",
             "-landroid",
+            "-latomic",
             "-ljnigraphics",
             "-llog",
             "-lm",
             "-z defs",
             "-s",
-            "-Wl,--icf=all",  # Identical Code Folding
             "-Wl,--exclude-libs,ALL",  # Exclude syms in all libs from auto export
         ],
         "//conditions:default": [],
@@ -86,4 +88,13 @@ cc_binary(
     linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [":benchmark_model_lib"],
+)
+
+filegroup(
+    name = "all_files",
+    srcs = glob(
+        ["**/*"],
+        exclude = ["**/OWNERS"],
+    ),
+    visibility = ["//tensorflow:__subpackages__"],
 )
